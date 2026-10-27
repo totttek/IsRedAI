@@ -34,22 +34,22 @@ int	main(int argc, char **argv)
 		return (1);
 	}
 
-	model = load_model(argv[1]);
+	model = model_load(argv[1]);
 	if (!model)
 	{
 		printf("Something went wrong while trying to load the model!\n");
 		return (1);
 	}
 
-	answer = forward(model, rgb);
+	answer = model_forward(model, rgb);
 	if (!answer)
 	{
 		printf("Something went wrong while trying to generate the answer!\n");
-		return (free_model(model), 1);
+		return (model_free(model), 1);
 	}
 	if (answer[0] > 0.5)
 		printf("Red!\n");
 	else
 		printf("Not Red!\n");
-	return (free_model(model), free(answer), 0);
+	return (model_free(model), free(answer), 0);
 }

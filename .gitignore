@@ -2,3 +2,8 @@
 
 *.o
 *.a
+*.csv
+
+/generator
+/predictor
+/trainer
