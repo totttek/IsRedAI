@@ -22,23 +22,25 @@ IsRedAI/
 ├── Makefile
 ├── generator_src/
 │   └── generator.c        dataset generator (writes CSV files)
-├── libmodel/               shared model library (see libmodel/README.md)
+├── libmodel/              general neural network library: create, train, save, load, run
+│                          (see libmodel/README.md)
 ├── predictor_src/
-│   └── predictor.c        loads model.csv and classifies one RGB value
+│   └── predictor.c        loads a .model file and classifies one RGB value
 ├── trainer_src/
 │   ├── trainer.h
-│   ├── trainer.c          model, forward/backward pass, training loop
+│   ├── trainer.c          training loop and evaluation, built on libmodel
 │   └── dataset_utils.c    CSV loading, stats, shuffling
+├── *.model                trained models (libmodel format)
 └── *.csv                  generated datasets
 ```
 
 ## Build & run
 
 ```sh
-make            # builds ./generator and ./trainer
+make            # builds libmodel, ./generator, ./trainer and ./predictor
 make data       # regenerates all datasets from fixed seeds (identical every time)
-./trainer train_uniform_boundry.csv test.csv model.csv   # trains, saves weights to model.csv
-./predictor model.csv 200 30 20                          # classifies one pixel
+./trainer train_uniform_boundry.csv test.csv my.model   # trains, saves the model to my.model
+./predictor my.model 200 30 20                          # classifies one pixel
 ```
 
 ### Generator
@@ -64,7 +66,27 @@ Datasets produced by `make data`:
 
 ### Trainer
 
-Loads the CSVs (normalising channels to 0-1), prints dataset stats including the majority-class baseline, trains, and evaluates on the test set every 10 epochs, reporting overall, red-only and non-red-only accuracy. Hyperparameters (epochs, learning rate, decay) are set in `main` / `train_model`.
+```
+./trainer <train.csv> <test.csv> [output.model]
+```
+
+Loads the CSVs (normalising channels to 0-1), prints dataset stats including the majority-class baseline, trains a network with `libmodel`, evaluates on the test set every 10 epochs (overall, red-only and non-red-only accuracy), and optionally saves the trained model. The network shape, seed, epochs, learning rate and decay are set in `main` / `train_model` (currently shape `{3, 4, 4, 1}`, 150 epochs, lr 0.5 × 0.96 per epoch, fixed seed).
+
+### Predictor
+
+```
+./predictor <model file> <R> <G> <B>
+```
+
+Loads a trained model and prints whether the colour (channels 0-255) is red.
+
+### Model files
+
+| File | Network | Trained with |
+|---|---|---|
+| `is_red_ai.model` | 3 → 2 → 1 | the original hand-written two-layer trainer (converted to the v2 format) |
+| `is_red_ai_v2.model` | 3 → 2 → 1 | the `libmodel` trainer |
+| `is_red_ai_v3.model` | 3 → 4 → 4 → 1 | the `libmodel` trainer |
 
 ## The model
 
@@ -83,7 +105,11 @@ h2 = sigmoid(w21*R + w22*G + w23*B + b2)
 p  = sigmoid(v1*h1 + v2*h2 + c)
 ```
 
-11 parameters in total. Training: binary cross-entropy loss, plain SGD (one update per pixel), Fisher-Yates shuffle every epoch, weights initialised uniformly in [-1, 1] (to break symmetry between the hidden neurons), learning rate 0.5 multiplied by 0.96 after each epoch.
+11 parameters in total.
+
+**Version 3, any shape (`libmodel`):** the fixed two-layer code was replaced by a general library, where a network is a list of layers, each a flat weight matrix plus biases and an activation. The same training loop works for `3 → 2 → 1`, `3 → 4 → 4 → 1` or anything else.
+
+Training (all versions): binary cross-entropy loss, plain SGD (one update per pixel), Fisher-Yates shuffle every epoch, weights initialised uniformly in [-1, 1] (to break symmetry between the hidden neurons), learning rate 0.5 multiplied by 0.96 after each epoch.
 
 ### Backpropagation, derived by hand
 
@@ -111,6 +137,15 @@ dL/db_i  = δ_i
 
 Every gradient has the same shape: **(error at the neuron) × (input to the weight)**.
 
+For any number of layers, the hidden-layer rule generalises: neuron `i` of layer `k` collects error from **every** neuron `n` of layer `k+1` it feeds, through the connecting weight, then scales it by its own sigmoid slope:
+
+```
+incoming_i = Σ_n  δ_(k+1),n * w_(k+1),n,i
+δ_k,i      = incoming_i * h_i * (1 - h_i)
+```
+
+All deltas are computed (from the output layer backwards) before any weight changes, so the whole gradient describes one consistent model.
+
 ## Results
 
 All runs are evaluated on the same uniform test set (baseline: always answering "not red" gives about 84%).
@@ -121,8 +156,10 @@ All runs are evaluated on the same uniform test set (baseline: always answering 
 | 1 neuron | 50% red | 98.1% | ~99.4% | ~97.8% |
 | 2 layers | uniform, lr decay | 99.85% | 99.7% | 99.9% |
 | **2 layers** | **30% boundary, lr decay, 150 epochs** | **100%** | **100%** | **100%** |
+| 3 → 2 → 1 on `libmodel` | 30% boundary, same settings | 100% | 100% | 100% |
+| 3 → 4 → 4 → 1 on `libmodel` | 30% boundary, same settings | 100% | 100% | 100% |
 
-The final model held 100% at every checkpoint from epoch 80 to epoch 150.
+The hand-written two-layer model held 100% at every checkpoint from epoch 80 to epoch 150. The same network trained with `libmodel` reached 100% at epoch 70 and held it from epoch 90 on, with nearly the same final loss (0.035 vs 0.036), which verified the library's general backpropagation. The deeper `3 → 4 → 4 → 1` network held 100% from epoch 60 on, with a final loss of 0.012.
 
 *Note: the test set was regenerated once partway through, when the generator changed (320 → 330 red pixels). The two-layer rows use the newer test set.*
 
@@ -152,9 +189,18 @@ Hidden neuron 2 learned the *negation* of `R > G + B`, and the output neuron com
 
 **5. Boundary-focused data places the cuts precisely.** Trained on uniform data, the threshold neuron settled at R > ~109 instead of 102, because very few uniform pixels sit near the boundary. With 30% boundary pixels, it moved to **102.5**, exactly halfway between the last non-red value (102) and the first red one (103). Training loss on that dataset is *higher* (it's full of hard examples), which is a reminder that training losses on different datasets aren't comparable. The shared test set is the fair comparison.
 
+**6. A bigger network learns the same rule, with redundancy.** `3 → 4 → 4 → 1` (41 parameters instead of 11) reached 100% sooner and ended with a third of the loss. Reading its weights shows why:
+
+| Layer | What the neurons learned |
+|---|---|
+| hidden 1 | both real rules again, both inverted (`R < ~0.41`, `G + B > R`), plus one tilted compromise cut and one weak, barely used neuron |
+| hidden 2 | two near-identical "one of the not-red reasons is true" detectors, one "neither reason is true" (red) detector, and one barely used neuron |
+| output | red when the red detector is on and the two not-red detectors are off |
+
+The extra capacity didn't find a better rule. It found the same one several times over, and that redundancy is where the extra confidence (lower loss) comes from. It also costs about four times the parameters and compute for the same test accuracy, and it shows why big networks are hard to interpret: even here, the rule is spread over duplicates, inverted features and half-unused neurons.
+
 ## Next steps
 
-- General layers of any size (heap-allocated weight matrices instead of fixed `[2][3]` arrays)
-- More hidden neurons: what do the extra ones learn when two cuts are enough?
-- MNIST handwritten digits (softmax output, real data)
+- MNIST handwritten digits (softmax output, real data) on top of `libmodel`
 - Mixture-of-Experts style routing between small sub-networks
+- Comparing sparse/routed models against dense ones with the same number of active and total parameters

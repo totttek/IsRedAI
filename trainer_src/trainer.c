@@ -89,7 +89,7 @@ int main(int argc, char **argv)
 {
 	t_dataset	*dataset;
 	t_dataset	*testset;
-	size_t		shape[3] = {3, 2, 1};
+	size_t		shape[4] = {3, 4, 4, 1};
 	t_model		*model;
 	t_trainer	*trainer;
 
@@ -104,7 +104,7 @@ int main(int argc, char **argv)
 	if (testset->size == 0)
 		fail_exit("Testset is empty");
 	print_dataset_stats(argv[2], testset);
-	model = model_create(shape, 3);
+	model = model_create(shape, 4);
 	if (!model)
 	{
 		free_dataset(dataset);
