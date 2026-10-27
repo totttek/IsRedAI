@@ -11,6 +11,7 @@ GEN     = generator
 TRN     = trainer
 PRD     = predictor
 LIB     = $(LIB_DIR)/libmodel.a
+LIB_HDR = $(LIB_DIR)/model.h $(LIB_DIR)/activation.h $(LIB_DIR)/model_trainer.h
 
 GEN_OBJ = $(GEN_DIR)/generator.o
 TRN_OBJ = $(TRN_DIR)/trainer.o $(TRN_DIR)/dataset_utils.o
@@ -21,8 +22,8 @@ all: $(GEN) $(TRN) $(PRD)
 $(GEN): $(GEN_OBJ)
 	$(CC) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
-$(TRN): $(TRN_OBJ)
-	$(CC) $(CFLAGS) $^ -o $@ $(LDLIBS)
+$(TRN): $(TRN_OBJ) $(LIB)
+	$(CC) $(CFLAGS) $(TRN_OBJ) -L$(LIB_DIR) -lmodel -o $@ $(LDLIBS)
 
 $(PRD): $(PRD_OBJ) $(LIB)
 	$(CC) $(CFLAGS) $(PRD_OBJ) -L$(LIB_DIR) -lmodel -o $@ $(LDLIBS)
@@ -36,10 +37,10 @@ FORCE:
 $(GEN_DIR)/%.o: $(GEN_DIR)/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(TRN_DIR)/%.o: $(TRN_DIR)/%.c $(TRN_DIR)/trainer.h
-	$(CC) $(CFLAGS) -I$(TRN_DIR) -c $< -o $@
+$(TRN_DIR)/%.o: $(TRN_DIR)/%.c $(TRN_DIR)/trainer.h $(LIB_HDR)
+	$(CC) $(CFLAGS) -I$(TRN_DIR) -I$(LIB_DIR) -c $< -o $@
 
-$(PRD_DIR)/%.o: $(PRD_DIR)/%.c $(LIB_DIR)/model.h
+$(PRD_DIR)/%.o: $(PRD_DIR)/%.c $(LIB_HDR)
 	$(CC) $(CFLAGS) -I$(LIB_DIR) -c $< -o $@
 
 # Regenerates the datasets with fixed seeds (always identical output).

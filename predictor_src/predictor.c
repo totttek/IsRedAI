@@ -9,28 +9,28 @@ int	main(int argc, char **argv)
 
 	if (argc != 5)
 	{
-		printf("Usage ./predictor <model file (.csv)> <RED> <GREEN> <BLUE>\n");
+		printf("Usage ./predictor <model file (.model)> <RED> <GREEN> <BLUE>\n");
 		return (1);
 	}
 
 	rgb[0] = strtod(argv[2], &endptr) / 255;
 	if (endptr == argv[2] || *endptr != '\0')
 	{
-		printf("Usage ./predictor <model file (.csv)> <RED> <GREEN> <BLUE>\n");
+		printf("Usage ./predictor <model file (.model)> <RED> <GREEN> <BLUE>\n");
 		return (1);
 	}
 
 	rgb[1] = strtod(argv[3], &endptr) / 255;
 	if (endptr == argv[3] || *endptr != '\0')
 	{
-		printf("Usage ./predictor <model file (.csv)> <RED> <GREEN> <BLUE>\n");
+		printf("Usage ./predictor <model file (.model)> <RED> <GREEN> <BLUE>\n");
 		return (1);
 	}
 
 	rgb[2] = strtod(argv[4], &endptr) / 255;
 	if (endptr == argv[4] || *endptr != '\0')
 	{
-		printf("Usage ./predictor <model file (.csv)> <RED> <GREEN> <BLUE>\n");
+		printf("Usage ./predictor <model file (.model)> <RED> <GREEN> <BLUE>\n");
 		return (1);
 	}
 
