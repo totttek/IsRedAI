@@ -111,8 +111,8 @@ int main(int argc, char **argv)
 		free_dataset(testset);
 		fail_exit("Something went wrong while allocationg the model!");
 	}
-	model_init_random(model, 1);
-	trainer = trainer_create(model);
+	model_init_random(model);
+	trainer = trainer_create(model, LOSS_BCE);
 	if (!trainer)
 	{
 		free_dataset(dataset);
