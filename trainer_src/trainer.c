@@ -73,7 +73,7 @@ void	train_model(t_trainer *trainer, t_dataset *dataset, t_dataset *testset,
 
 	for	(int i = 1; i <= epochs; i++)
 	{
-		scramble_dataset(dataset);
+		scramble_dataset(dataset);	
 		avrage_loss = learn_epoch(trainer, dataset, lr);
 		printf("Epoch %d: avrage loss - %lf\n", i, avrage_loss);
 		if (i % 10 == 0)

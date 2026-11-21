@@ -204,3 +204,11 @@ The extra capacity didn't find a better rule. It found the same one several time
 - MNIST handwritten digits (softmax output, real data) on top of `libmodel`
 - Mixture-of-Experts style routing between small sub-networks
 - Comparing sparse/routed models against dense ones with the same number of active and total parameters
+
+## AI use
+
+I wrote the C code in this project myself: the generator, trainer, predictor and the libmodel code. I used Claude (Anthropic's AI assistant) as a tutor and helper for:
+
+- Explaining the theory (backpropagation, loss functions, activations) and reviewing my code by pointing me toward bugs rather than fixing them
+- Writing this README and the Makefile
+- Reorganising the source files into the `generator_src/`, `trainer_src/` and `predictor_src/` directories
